@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threat Priority Predictor</title>
+    <!-- 1. Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 2. Configure Dark Mode for the App -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class', // Enable dark mode
+        }
+    </script>
+    <style>
+        /* Simple loading spinner for the button */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            width: 1.25rem;
+            height: 1.25rem;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 font-sans antialiased text-gray-200">
+
+    <!-- Main Container -->
+    <div class="container mx-auto p-4 md:p-8 max-w-2xl">
+
+        <!-- Header -->
+        <div class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 flex items-center justify-center space-x-4">
+            <!-- Shield Icon -->
+            <svg class="w-10 h-10 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+            </svg>
+            <h1 class="text-3xl font-bold text-white text-center">
+                Threat Priority Predictor
+            </h1>
+        </div>
+
+        <!-- Input Form -->
+        <form id="prediction-form" class="bg-gray-800 p-6 md:p-8 rounded-lg shadow-lg">
+            <p class="text-center text-gray-400 mb-6">
+                Enter connection details to analyze its threat priority.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <!-- Bytes In -->
+                <div>
+                    <label for="bytes-in" class="block text-sm font-medium text-gray-300">Bytes In</label>
+                    <input type="number" id="bytes-in" name="bytes-in" value="0" class="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-white">
+                </div>
+
+                <!-- Bytes Out -->
+                <div>
+                    <label for="bytes-out" class="block text-sm font-medium text-gray-300">Bytes Out</label>
+                    <input type="number" id="bytes-out" name="bytes-out" value="0" class="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-white">
+                </div>
+
+                <!-- Protocol -->
+                <div>
+                    <label for="protocol" class="block text-sm font-medium text-gray-300">Protocol</label>
+                    <select id="protocol" name="protocol" class="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-white">
+                        <option>TCP</option>
+                        <option>UDP</option>
+                        <option>ICMP</option>
+                        <option>Unknown</option>
+                    </select>
+                </div>
+
+                <!-- Destination Port -->
+                <div>
+                    <label for="dst-port" class="block text-sm font-medium text-gray-300">Destination Port</label>
+                    <select id="dst-port" name="dst-port" class="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-white">
+                        <option value="80">80 (HTTP)</option>
+                        <option value="443">443 (HTTPS)</option>
+                        <option value="22">22 (SSH)</option>
+                        <option value="3306">3306 (MySQL)</option>
+                        <option value="3389">3389 (RDP)</option>
+                        <option value="Other">Other (Specify)</option>
+                    </select>
+                </div>
+
+                <!-- Other Port Input (Hidden by default) -->
+                <div id="other-port-container" class="hidden md:col-span-2">
+                    <label for="other-port-input" class="block text-sm font-medium text-gray-300">Specify Other Port</label>
+                    <input type="number" id="other-port-input" name="other-port-input" placeholder="e.g., 8080" class="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-white">
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="mt-8 text-center">
+                <button type="submit" id="predict-button" class="w-full md:w-1/2 inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-lg shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all">
+                    <span id="button-text">Analyze Connection</span>
+                    <div id="button-spinner" class="spinner hidden ml-2"></div>
+                </button>
+            </div>
+        </form>
+
+        <!-- Result Display -->
+        <div id="result-container" class="mt-6 bg-gray-800 p-6 rounded-lg shadow-lg hidden">
+            <h2 id="result-title" class="text-3xl font-semibold text-center mb-2"></h2>
+            <p id="result-probability" class="text-center text-lg text-gray-400 mb-4"></p>
+            
+            <!-- Dynamic Result Bar -->
+            <div class="w-full bg-gray-700 rounded-full h-8 overflow-hidden">
+                <div id="result-bar" class="h-8 rounded-full text-white font-medium text-sm flex items-center justify-center transition-all duration-500 ease-out" style="width: 0%;">
+                </div>
+            </div>
+            
+            <p id="result-description" class="text-center text-gray-400 mt-4"></p>
+        </div>
+    </div>
+
+    <!-- 3. JAVASCRIPT LOGIC -->
+    <script>
+        // -----------------------------------------------------------------
+        // PART 1: PASTE YOUR MODEL DATA HERE
+        // -----------------------------------------------------------------
+        // Run the `Cybersecurity_EDA_and_Model.py` script in Colab.
+        // Copy the ENTIRE JSON object it prints and paste it below,
+        // replacing this placeholder object.
+        // -----------------------------------------------------------------
+        const modelData = {
+            "intercept": -2.6662247412958937,
+            "scaling": {
+                "mean": [
+                1307148.32,
+                91303.01777777777
+                ],
+                "std": [
+                4434216.730362863,
+                272116.49728576775
+                ]
+            },
+            "coefficients": {
+                "bytes_in": 2.7619936490284096,
+                "bytes_out": 2.5917415563692074,
+                "protocol_HTTPS": -0.0006718284249574006,
+                "dst_port_443": -0.0006718284249574006
+            }
+        };
+        // -----------------------------------------------------------------
+        // END OF MODEL DATA
+        // -----------------------------------------------------------------
+
+
+        // --- Get DOM elements ---
+        const form = document.getElementById('prediction-form');
+        const predictButton = document.getElementById('predict-button');
+        const buttonText = document.getElementById('button-text');
+        const buttonSpinner = document.getElementById('button-spinner');
+        
+        // Form inputs
+        const portSelect = document.getElementById('dst-port');
+        const otherPortContainer = document.getElementById('other-port-container');
+        const otherPortInput = document.getElementById('other-port-input');
+        
+        // Result elements
+        const resultContainer = document.getElementById('result-container');
+        const resultTitle = document.getElementById('result-title');
+        const resultProbability = document.getElementById('result-probability');
+        const resultBar = document.getElementById('result-bar');
+        const resultDescription = document.getElementById('result-description');
+
+
+        // --- Attach event listeners ---
+        
+        // Show/hide 'Other Port' input
+        portSelect.addEventListener('change', function() {
+            if (this.value === 'Other') {
+                otherPortContainer.classList.remove('hidden');
+            } else {
+                otherPortContainer.classList.add('hidden');
+            }
+        });
+        
+        // Handle form submission
+        form.addEventListener('submit', function(e) {
+            e.preventDefault(); // Stop form from submitting
+            runPrediction();
+        });
+
+        function runPrediction() {
+            // 1. Show loading state
+            buttonText.textContent = 'Analyzing...';
+            buttonSpinner.classList.remove('hidden');
+            predictButton.disabled = true;
+
+            // 2. Get form values
+            const formValues = {
+                bytes_in: parseFloat(document.getElementById('bytes-in').value),
+                bytes_out: parseFloat(document.getElementById('bytes-out').value),
+                protocol: document.getElementById('protocol').value
+            };
+
+            // Get the correct port value
+            if (portSelect.value === 'Other') {
+                formValues.port = otherPortInput.value;
+            } else {
+                formValues.port = portSelect.value;
+            }
+            
+            // 3. Create the feature vector (this mimics the Python pipeline)
+            let logOdds = modelData.intercept;
+
+            // 3a. Process numerical features (StandardScaler)
+            // Note: scaling.mean and scaling.std are arrays in this model
+            const scaled_bytes_in = (formValues.bytes_in - modelData.scaling.mean[0]) / modelData.scaling.std[0];
+            const scaled_bytes_out = (formValues.bytes_out - modelData.scaling.mean[1]) / modelData.scaling.std[1];
+            
+            logOdds += scaled_bytes_in * (modelData.coefficients['bytes_in'] || 0);
+            logOdds += scaled_bytes_out * (modelData.coefficients['bytes_out'] || 0);
+
+            // 3b. Process categorical features (One-Hot Encoding in JS)
+            // This loop cleverly handles 'handle_unknown="ignore"'
+            // If a value isn't in the coefficients, it just adds 0.
+            for (const key in modelData.coefficients) {
+                if (key.startsWith('protocol_')) {
+                    if (key === 'protocol_' + formValues.protocol) {
+                        logOdds += modelData.coefficients[key];
+                    }
+                } else if (key.startsWith('dst_port_')) {
+                    if (key === 'dst_port_' + formValues.port) {
+                        logOdds += modelData.coefficients[key];
+                    }
+                }
+            }
+
+            // 4. Apply the Sigmoid function to get a probability
+            const probability = 1 / (1 + Math.exp(-logOdds));
+            const probabilityPercent = (probability * 100).toFixed(1);
+
+            // 5. Simulate a short delay
+            setTimeout(() => {
+                // 6. Display the result
+                showResult(probabilityPercent);
+
+                // 7. Reset button
+                buttonText.textContent = 'Analyze Connection';
+                buttonSpinner.classList.add('hidden');
+                predictButton.disabled = false;
+            }, 500);
+        }
+
+        function showResult(percent) {
+            resultContainer.classList.remove('hidden');
+            resultBar.style.width = percent + '%';
+            resultProbability.textContent = `${percent}% Likelihood of being a High Priority Threat`;
+
+            // Clear old color classes
+            resultBar.classList.remove('bg-green-500', 'bg-yellow-500', 'bg-red-500');
+            resultTitle.classList.remove('text-green-400', 'text-yellow-400', 'text-red-400');
+
+            // Apply new style based on probability
+            if (percent > 70) {
+                resultTitle.textContent = 'HIGH PRIORITY';
+                resultTitle.classList.add('text-red-400');
+                resultBar.classList.add('bg-red-500');
+                resultDescription.textContent = "This connection matches known high-threat patterns. Recommend immediate investigation.";
+            } else if (percent > 30) {
+                resultTitle.textContent = 'MEDIUM PRIORITY';
+                resultTitle.classList.add('text-yellow-400');
+                resultBar.classList.add('bg-yellow-500');
+                resultDescription.textContent = "This connection shows some suspicious characteristics. Recommend review when possible.";
+            } else {
+                resultTitle.textContent = 'LOW PRIORITY';
+                resultTitle.classList.add('text-green-400');
+                resultBar.classList.add('bg-green-500');
+                resultDescription.textContent = "This connection appears to be low-priority or benign. No immediate action required.";
+            }
+        }
+
+    </script>
+</body>
+</html>
+
